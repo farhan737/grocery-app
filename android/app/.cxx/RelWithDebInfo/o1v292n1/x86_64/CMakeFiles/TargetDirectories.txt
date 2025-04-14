@@ -1,0 +1,2 @@
+/home/farhan/Documents/grocery-app/android/app/.cxx/RelWithDebInfo/o1v292n1/x86_64/CMakeFiles/edit_cache.dir
+/home/farhan/Documents/grocery-app/android/app/.cxx/RelWithDebInfo/o1v292n1/x86_64/CMakeFiles/rebuild_cache.dir

@@ -13,6 +13,24 @@ class CartItem {
     this.isPerUnit = false,
   });
 
+  // Create CartItem from order data (for order history)
+  factory CartItem.fromOrderData(Map<String, dynamic> data) {
+    // Create a simplified Product object with just the data we need
+    final product = Product(
+      telugu: data['productTelugu'],
+      type: data['productType'],
+      weights: Map<String, double?>.from(data['weights']),
+      pricePerUnit: data['pricePerUnit'],
+    );
+    
+    return CartItem(
+      product: product,
+      weightOption: data['weightOption'],
+      quantity: data['quantity'],
+      isPerUnit: data['isPerUnit'],
+    );
+  }
+
   // Calculate the price for this cart item
   double get price {
     if (isPerUnit) {

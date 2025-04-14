@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/cart_provider.dart';
+import '../models/order.dart';
+import '../services/database_helper.dart';
+import '../services/pdf_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({Key? key}) : super(key: key);
@@ -14,18 +17,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
   bool _isProcessing = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
-  void _processOrder() {
+  Future<void> _saveOrder() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -34,21 +36,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _isProcessing = true;
     });
 
-    // Simulate order processing
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      
+    try {
+      print('Checkout: Starting order save process');
       final cart = Provider.of<CartProvider>(context, listen: false);
       
       // Generate order ID
       final orderId = 'ORD-${DateFormat('yyyyMMdd-HHmmss').format(DateTime.now())}';
+      print('Checkout: Generated order ID: $orderId');
+      
+      // Create order object
+      final order = Order(
+        id: orderId,
+        customerName: _nameController.text,
+        phoneNumber: _phoneController.text,
+        totalAmount: cart.totalAmount,
+        date: DateTime.now(),
+        items: cart.items,
+      );
+      print('Checkout: Created order object with ${order.items.length} items');
+      
+      // Save order to database
+      print('Checkout: Attempting to save order to database');
+      try {
+        await _dbHelper.saveOrder(order);
+        print('Checkout: Order saved to database successfully');
+      } catch (dbError) {
+        print('Checkout: Database error: $dbError');
+        print('Checkout: Database error stack trace:');
+        print(StackTrace.current);
+        rethrow;
+      }
+      
+      // Generate PDF
+      print('Checkout: Attempting to generate and print PDF');
+      try {
+        await PdfService.generateAndPrintOrder(order);
+        print('Checkout: PDF generated and printed successfully');
+      } catch (pdfError) {
+        print('Checkout: PDF error: $pdfError');
+        print('Checkout: PDF error stack trace:');
+        print(StackTrace.current);
+        // Continue execution even if PDF fails
+      }
+      
+      if (!mounted) return;
       
       // Show success dialog
+      print('Checkout: Showing success dialog');
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Order Placed!'),
+          title: const Text('Order Saved!'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +96,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 8),
               Text('Total Amount: ₹${cart.totalAmount.toStringAsFixed(2)}'),
               const SizedBox(height: 16),
-              const Text('Your order has been placed successfully. Thank you for shopping with us!'),
+              const Text('Your order has been saved and printed successfully.'),
             ],
           ),
           actions: [
@@ -72,11 +111,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
       );
+    } catch (e) {
+      // Show error dialog
+      print('Checkout: Error in save order process: $e');
+      print('Checkout: Error stack trace:');
+      print(StackTrace.current);
       
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to save order: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } finally {
       setState(() {
         _isProcessing = false;
       });
-    });
+    }
   }
 
   @override
@@ -128,13 +186,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     Expanded(
                                       child: Text(
                                         item.displayText,
-                                        style: const TextStyle(fontSize: 16),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     Text(
                                       '₹${item.price.toStringAsFixed(2)}',
                                       style: const TextStyle(
-                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -154,10 +211,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                               Text(
                                 '₹${cart.totalAmount.toStringAsFixed(2)}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color: Colors.deepPurple,
                                 ),
                               ),
                             ],
@@ -167,8 +224,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
 
-                  // Customer information form
+                  // Customer information
                   Card(
+                    margin: const EdgeInsets.only(bottom: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -213,21 +271,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _addressController,
-                              decoration: const InputDecoration(
-                                labelText: 'Delivery Address',
-                                border: OutlineInputBorder(),
-                              ),
-                              maxLines: 3,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your address';
-                                }
-                                return null;
-                              },
-                            ),
                           ],
                         ),
                       ),
@@ -236,12 +279,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Place order button
+                  // Save order button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _processOrder,
+                      onPressed: _saveOrder,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.secondary,
                         foregroundColor: Colors.white,
@@ -249,7 +292,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: const Text(
-                        'PLACE ORDER',
+                        'SAVE ORDER',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

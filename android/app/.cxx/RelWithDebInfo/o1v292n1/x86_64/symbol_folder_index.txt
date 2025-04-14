@@ -1,0 +1,1 @@
+/home/farhan/Documents/grocery-app/build/app/intermediates/cxx/RelWithDebInfo/o1v292n1/obj/x86_64

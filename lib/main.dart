@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'providers/cart_provider.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize sqflite_ffi for desktop platforms
+  if (!kIsWeb) {
+    // Initialize FFI
+    sqfliteFfiInit();
+    // Change the default factory for desktop platforms
+    databaseFactory = databaseFactoryFfi;
+  }
+  
   runApp(const MyApp());
 }
 

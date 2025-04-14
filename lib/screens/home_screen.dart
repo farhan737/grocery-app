@@ -5,6 +5,7 @@ import '../providers/cart_provider.dart';
 import '../services/sheet_service.dart';
 import '../widgets/product_card.dart';
 import 'cart_screen.dart';
+import 'order_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -35,6 +36,17 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Grocery App'),
         actions: [
+          // Order history button
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => const OrderHistoryScreen(),
+                ),
+              );
+            },
+          ),
           Stack(
             alignment: Alignment.center,
             children: [
