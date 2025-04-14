@@ -1,5 +1,9 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/order.dart';
 
 class DatabaseHelper {
@@ -11,50 +15,62 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
-    print('DatabaseHelper: Database not initialized, initializing now');
+    if (_database != null) {
+      print('DatabaseHelper: Returning existing database instance');
+      return _database!;
+    }
+    
+    print('DatabaseHelper: Getting database instance for the first time');
     _database = await _initDatabase();
     return _database!;
   }
 
   Future<Database> _initDatabase() async {
+    print('DatabaseHelper: Initializing database');
+    
+    // Initialize FFI for desktop platforms
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      print('DatabaseHelper: Using sqflite_ffi for desktop platform');
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+    
     try {
-      print('DatabaseHelper: Getting database path');
-      final path = join(await getDatabasesPath(), 'grocery_orders.db');
+      // Get the database path
+      final Directory documentsDirectory = await getApplicationDocumentsDirectory();
+      final String path = join(documentsDirectory.path, 'grocery_orders.db');
       print('DatabaseHelper: Database path: $path');
       
-      print('DatabaseHelper: Opening database');
+      // Open the database
       return await openDatabase(
         path,
         version: 1,
-        onCreate: _createDb,
+        onCreate: _onCreate,
       );
     } catch (e) {
       print('DatabaseHelper: Error initializing database: $e');
-      print('DatabaseHelper: Error stack trace:');
-      print(StackTrace.current);
+      print('DatabaseHelper: Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
 
-  Future<void> _createDb(Database db, int version) async {
+  Future<void> _onCreate(Database db, int version) async {
+    print('DatabaseHelper: Creating orders table');
     try {
-      print('DatabaseHelper: Creating orders table');
       await db.execute('''
         CREATE TABLE orders(
           id TEXT PRIMARY KEY,
-          customerName TEXT NOT NULL,
-          phoneNumber TEXT NOT NULL,
-          totalAmount REAL NOT NULL,
-          date TEXT NOT NULL,
-          items TEXT NOT NULL
+          customerName TEXT,
+          phoneNumber TEXT,
+          totalAmount REAL,
+          date TEXT,
+          items TEXT
         )
       ''');
       print('DatabaseHelper: Orders table created successfully');
     } catch (e) {
-      print('DatabaseHelper: Error creating database table: $e');
-      print('DatabaseHelper: Error stack trace:');
-      print(StackTrace.current);
+      print('DatabaseHelper: Error creating orders table: $e');
+      print('DatabaseHelper: Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
