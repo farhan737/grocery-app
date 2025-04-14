@@ -1,0 +1,18 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"
+  web:
+    generate: true
+    image_path: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"
+  windows:
+    generate: true
+    image_path: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"
+  macos:
+    generate: true
+    image_path: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"
+  linux:
+    generate: true
+    image_path: "3408a590-5197-4051-a12b-a3cbdd4a4e61.jpeg"

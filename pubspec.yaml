@@ -1,5 +1,5 @@
 name: grocery_app
-description: "A new Flutter project."
+description: A grocery app for managing products and orders.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -45,6 +45,7 @@ dependencies:
   sqflite: ^2.3.2
   sqflite_common_ffi: ^2.3.2
   path: ^1.8.3
+  flutter_launcher_icons: ^0.14.3
 
 dev_dependencies:
   flutter_test:

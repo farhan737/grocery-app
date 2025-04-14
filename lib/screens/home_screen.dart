@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Grocery App'),
+        title: const Text('Sarukulu'),
         actions: [
           // Order history button
           IconButton(

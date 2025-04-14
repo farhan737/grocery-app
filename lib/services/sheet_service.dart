@@ -8,7 +8,7 @@ class SheetService {
   // Google Apps Script Web App URL
   // IMPORTANT: Replace this with your actual deployed Apps Script URL
   // The URL should look like: https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxxxxxxx/exec
-  final String appsScriptUrl = 'https://script.google.com/macros/s/AKfycbzK8sWfcbhjQMfhffHhCnzHzotkTXNJSlupBcxlIe_uYbobj5B6jUZrhu-JFRHIcntRxw/exec';
+  final String appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxNP4QfPQp6KihAsaYQppSL_vHFON7P0ngpKdWkNFRWBnjLzxBpwq13qSrWVG5CLYfAcg/exec';
   
   // Note: If you get an HTML error response, it means your Apps Script is not properly deployed
   // or not set to be accessible by 'Anyone'. See the deployment instructions.

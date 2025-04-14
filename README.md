@@ -35,7 +35,7 @@ The app intelligently handles empty or invalid data in the sheet, only showing o
 The app connects to a Google Sheets web app at the following URL:
 
 ```
-https://script.google.com/macros/s/AKfycbwTTm5_kZPaO8IIzTpFrW2QGw4GDXucHMdU0IQjwvdIpyguExgbRvM2jvayp4WpcQvx/exec
+https://script.google.com/macros/s/AKfycbxNP4QfPQp6KihAsaYQppSL_vHFON7P0ngpKdWkNFRWBnjLzxBpwq13qSrWVG5CLYfAcg/exec
 ```
 
 This web app provides a JSON API for accessing the product data.

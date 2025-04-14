@@ -5,13 +5,66 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/order.dart';
 
 class PdfService {
+  // Google Apps Script URL for fetching product data
+  static final String appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxNP4QfPQp6KihAsaYQppSL_vHFON7P0ngpKdWkNFRWBnjLzxBpwq13qSrWVG5CLYfAcg/exec';
+  
+  // Map to cache English names
+  static Map<String, String> _englishNameCache = {};
+  
+  // Fetch English names from the Google Sheet
+  static Future<void> _fetchEnglishNames() async {
+    try {
+      print('PdfService: Fetching English names from Google Sheet');
+      
+      if (_englishNameCache.isNotEmpty) {
+        print('PdfService: Using cached English names');
+        return;
+      }
+      
+      final headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 Flutter App',
+      };
+      
+      final response = await http.get(Uri.parse(appsScriptUrl), headers: headers);
+      
+      if (response.statusCode == 200) {
+        List<dynamic> jsonData = json.decode(response.body);
+        
+        for (var product in jsonData) {
+          if (product['telugu'] != null && product['english'] != null) {
+            _englishNameCache[product['telugu']] = product['english'];
+            print('PdfService: Cached English name for ${product['telugu']}: ${product['english']}');
+          }
+        }
+        
+        print('PdfService: Cached ${_englishNameCache.length} English names');
+      } else {
+        print('PdfService: Failed to fetch English names: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('PdfService: Error fetching English names: $e');
+    }
+  }
+  
+  // Get English name for a Telugu product name
+  static String _getEnglishName(String teluguName) {
+    return _englishNameCache[teluguName] ?? '';
+  }
+
   // Generate and print an order receipt
   static Future<void> generateAndPrintOrder(Order order) async {
     try {
       print('PdfService: Starting PDF generation for order ${order.id}');
+      
+      // Fetch English names before generating PDF
+      await _fetchEnglishNames();
+      
       final pdf = await generateOrderPdf(order);
       print('PdfService: PDF document created, initiating printing');
       
@@ -34,6 +87,10 @@ class PdfService {
   static Future<File> generateAndSaveOrder(Order order) async {
     try {
       print('PdfService: Starting PDF generation for saving order ${order.id}');
+      
+      // Fetch English names before generating PDF
+      await _fetchEnglishNames();
+      
       final pdf = await generateOrderPdf(order);
       
       // Get the documents directory
@@ -67,6 +124,9 @@ class PdfService {
       print('PdfService: Setting up fonts');
       final font = pw.Font.helvetica();
       final fontBold = pw.Font.helveticaBold();
+      
+      // For Telugu text, we'll use the English name in the PDF since
+      // standard PDF fonts don't support Telugu characters
       
       print('PdfService: Adding page to PDF document');
       pdf.addPage(
@@ -221,14 +281,21 @@ class PdfService {
           ...order.items.map((item) {
             try {
               final unitPrice = item.price / item.quantity;
+              final englishName = _getEnglishName(item.product.telugu);
+              
+              // Prioritize English name since Telugu fonts aren't supported
+              final displayName = englishName.isNotEmpty 
+                  ? englishName
+                  : item.product.telugu;
+                  
               return pw.TableRow(
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(5),
                     child: pw.Text(
                       item.isPerUnit 
-                        ? '${item.product.telugu} (Per Unit)'
-                        : '${item.product.telugu} (${item.weightOption})',
+                        ? '$displayName (Per Unit)'
+                        : '$displayName (${item.weightOption})',
                     ),
                   ),
                   pw.Padding(
@@ -238,14 +305,14 @@ class PdfService {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(5),
                     child: pw.Text(
-                      '₹${unitPrice.toStringAsFixed(2)}',
+                      'Rs ${unitPrice.toStringAsFixed(2)}',
                       textAlign: pw.TextAlign.right,
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(5),
                     child: pw.Text(
-                      '₹${item.price.toStringAsFixed(2)}',
+                      'Rs ${item.price.toStringAsFixed(2)}',
                       textAlign: pw.TextAlign.right,
                     ),
                   ),
@@ -287,7 +354,7 @@ class PdfService {
                 ),
                 pw.SizedBox(width: 20),
                 pw.Text(
-                  '₹${order.totalAmount.toStringAsFixed(2)}',
+                  'Rs ${order.totalAmount.toStringAsFixed(2)}',
                   style: pw.TextStyle(
                     font: fontBold,
                     fontSize: 16,

@@ -13,7 +13,7 @@ class CartScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Cart'),
+        title: const Text('Sarukulu - Cart'),
         actions: [
           if (cart.itemCount > 0)
             IconButton(

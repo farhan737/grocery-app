@@ -143,7 +143,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Checkout'),
+        title: const Text('Sarukulu - Checkout'),
       ),
       body: _isProcessing
           ? const Center(

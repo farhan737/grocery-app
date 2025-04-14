@@ -31,7 +31,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order History'),
+        title: const Text('Sarukulu - Order History'),
       ),
       body: FutureBuilder<List<Order>>(
         future: _ordersFuture,
