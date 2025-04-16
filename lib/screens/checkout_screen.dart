@@ -102,7 +102,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                cart.clear();
+                cart.clearCart();
                 Navigator.of(ctx).pop();
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },

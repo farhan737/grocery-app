@@ -184,49 +184,22 @@ class _ProductCardState extends State<ProductCard> {
     
     if (_isPerUnit) {
       print('ProductCard: Adding per unit item with quantity $_quantity');
-      // Add the item once
+      // Add the item with quantity
       cartProvider.addItem(
         widget.product,
         'Per Unit',
-        isPerUnit: true,
+        _quantity,
+        true, // isPerUnit
       );
-      
-      // If quantity > 1, update the quantity
-      if (_quantity > 1) {
-        // Find the index of the item we just added
-        int itemIndex = cartProvider.items.indexWhere((item) => 
-          item.product.telugu == widget.product.telugu && 
-          item.weightOption == 'Per Unit' &&
-          item.isPerUnit == true
-        );
-        
-        if (itemIndex >= 0) {
-          // Update the quantity
-          cartProvider.updateQuantity(itemIndex, _quantity);
-        }
-      }
     } else if (_selectedWeight != null) {
       print('ProductCard: Adding weight item: $_selectedWeight with quantity $_quantity');
-      // Add the item once
+      // Add the item with quantity
       cartProvider.addItem(
         widget.product,
         _selectedWeight!,
+        _quantity,
+        false, // isPerUnit
       );
-      
-      // If quantity > 1, update the quantity
-      if (_quantity > 1) {
-        // Find the index of the item we just added
-        int itemIndex = cartProvider.items.indexWhere((item) => 
-          item.product.telugu == widget.product.telugu && 
-          item.weightOption == _selectedWeight &&
-          item.isPerUnit == false
-        );
-        
-        if (itemIndex >= 0) {
-          // Update the quantity
-          cartProvider.updateQuantity(itemIndex, _quantity);
-        }
-      }
     } else {
       print('ProductCard: Error - No valid selection for adding to cart');
       return;

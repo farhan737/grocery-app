@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,7 +34,7 @@ class CartProvider with ChangeNotifier {
   }
 
   // Add item to cart
-  void addItem(Product product, String weightOption, {bool isPerUnit = false}) {
+  void addItem(Product product, String weightOption, [int quantity = 1, bool isPerUnit = false]) {
     // Check if the item already exists in the cart
     int existingIndex = _items.indexWhere((item) => 
       item.product.telugu == product.telugu && 
@@ -43,16 +44,16 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       // Increment quantity if item already exists
-      _items[existingIndex].quantity += 1;
+      _items[existingIndex].quantity += quantity;
     } else {
       // Add new item
-      _items.add(
-        CartItem(
-          product: product,
-          weightOption: weightOption,
-          isPerUnit: isPerUnit,
-        ),
+      final cartItem = CartItem(
+        product: product,
+        weightOption: weightOption,
+        isPerUnit: isPerUnit,
       );
+      cartItem.quantity = quantity; // Set the quantity
+      _items.add(cartItem);
     }
     
     // Save cart to storage
@@ -86,7 +87,7 @@ class CartProvider with ChangeNotifier {
   }
 
   // Clear cart
-  void clear() {
+  void clearCart() {
     _items.clear();
     
     // Clear saved cart
@@ -119,5 +120,56 @@ class CartProvider with ChangeNotifier {
     
     notifyListeners();
     return true;
+  }
+
+  // Clear cart and replace with imported items
+  Future<bool> replaceCartWithImported(List<Product> availableProducts, String filePath, {BuildContext? context}) async {
+    try {
+      print('CartProvider: Replacing cart with imported items from $filePath');
+      
+      // Read file content
+      final file = File(filePath);
+      if (!await file.exists()) {
+        print('CartProvider: File does not exist: $filePath');
+        return false;
+      }
+      
+      final jsonString = await file.readAsString();
+      
+      // Process the cart items
+      final importedItems = await CartExportService.processImportedJson(jsonString, availableProducts);
+      
+      if (importedItems == null || importedItems.isEmpty) {
+        print('CartProvider: No valid items found in import file');
+        return false;
+      }
+      
+      // Clear existing cart and add new items
+      clearCart();
+      
+      // Add all imported items
+      for (var item in importedItems) {
+        addItem(item.product, item.weightOption, item.quantity ?? 1, item.isPerUnit);
+      }
+      
+      // Save cart to storage
+      CartPersistenceService.saveCart(_items);
+      
+      print('CartProvider: Cart replaced with ${importedItems.length} imported items');
+      return true;
+    } catch (e) {
+      print('CartProvider: Error replacing cart: $e');
+      
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing cart: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      
+      return false;
+    }
   }
 }

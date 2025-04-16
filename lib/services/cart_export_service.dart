@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 
@@ -228,7 +229,7 @@ class CartExportService {
         return null;
       }
       
-      final cartItems = await _processCartJson(jsonString, availableProducts);
+      final cartItems = await processImportedJson(jsonString, availableProducts);
       print('CartExportService: Processed ${cartItems?.length ?? 0} cart items');
       
       return cartItems;
@@ -244,6 +245,182 @@ class CartExportService {
         );
       }
       
+      return null;
+    }
+  }
+  
+  // Import cart from a file URI (either file:// or content://)
+  static Future<List<CartItem>?> importCartFromUri(String uriString, List<Product> availableProducts, BuildContext? context) async {
+    try {
+      print('CartExportService: Importing cart from URI: $uriString');
+      String? jsonString;
+      
+      // Try to read the file directly first
+      try {
+        if (uriString.startsWith('file://')) {
+          // Remove file:// prefix if present
+          uriString = uriString.substring(7);
+        }
+        
+        // Try to read as a direct file path
+        final file = File(uriString);
+        if (await file.exists()) {
+          print('CartExportService: Reading file directly: $uriString');
+          jsonString = await file.readAsString();
+          print('CartExportService: Successfully read file content, length: ${jsonString.length}');
+        }
+      } catch (e) {
+        print('CartExportService: Error reading file directly: $e');
+      }
+      
+      // If direct reading failed, try to use the content resolver
+      if (jsonString == null && context != null) {
+        try {
+          print('CartExportService: Trying to read using content resolver');
+          // Show loading indicator
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reading cart file...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+          
+          // Try to use the file picker as a fallback
+          final filePath = await FlutterFileDialog.pickFile(
+            params: const OpenFileDialogParams(
+              fileExtensionsFilter: ['srkl'],
+            ),
+          );
+          
+          if (filePath != null) {
+            print('CartExportService: Selected file via picker: $filePath');
+            final file = File(filePath);
+            jsonString = await file.readAsString();
+            print('CartExportService: Successfully read file content via picker, length: ${jsonString.length}');
+          } else {
+            print('CartExportService: No file selected via picker');
+            return null;
+          }
+        } catch (e) {
+          print('CartExportService: Error reading file via picker: $e');
+        }
+      }
+      
+      // If we still don't have content, show error and return
+      if (jsonString == null) {
+        print('CartExportService: Failed to read file content');
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read cart file. Please try sharing it instead.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return null;
+      }
+      
+      // Process the JSON content
+      final cartItems = await processImportedJson(jsonString, availableProducts);
+      print('CartExportService: Processed ${cartItems?.length ?? 0} cart items');
+      
+      return cartItems;
+    } catch (e) {
+      print('CartExportService: Error importing cart from URI: $e');
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing cart: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+  
+  // Process imported JSON string and convert to cart items
+  static Future<List<CartItem>?> processImportedJson(String jsonString, List<Product> availableProducts) async {
+    try {
+      print('CartExportService: Processing imported JSON');
+      
+      // Parse JSON
+      final Map<String, dynamic> cartData;
+      try {
+        cartData = jsonDecode(jsonString);
+        print('CartExportService: Successfully parsed JSON');
+      } catch (e) {
+        print('CartExportService: Error parsing JSON: $e');
+        return null;
+      }
+      
+      // Validate data structure
+      if (!cartData.containsKey('items') || !(cartData['items'] is List)) {
+        print('CartExportService: Invalid file format - missing items array');
+        return null;
+      }
+      
+      // Convert to cart items
+      final List<dynamic> itemsJson = cartData['items'];
+      print('CartExportService: Found ${itemsJson.length} items in JSON');
+      final items = <CartItem>[];
+      
+      for (var itemJson in itemsJson) {
+        try {
+          // Find the product in available products
+          final productId = itemJson['productId'];
+          if (productId == null) {
+            print('CartExportService: Skipping item with null productId');
+            continue;
+          }
+          
+          print('CartExportService: Looking for product: $productId');
+          final product = availableProducts.firstWhere(
+            (p) => p.telugu == productId,
+            orElse: () {
+              print('CartExportService: Product not found: $productId');
+              return Product(telugu: productId, weights: {}, type: 'unknown');
+            },
+          );
+          
+          // Skip products that don't exist in the current catalog
+          if (product.type == 'unknown') {
+            print('CartExportService: Skipping unknown product: $productId');
+            continue;
+          }
+          
+          // Get weight option and isPerUnit
+          final weightOption = itemJson['weightOption'] ?? '1K';
+          final isPerUnit = itemJson['isPerUnit'] ?? false;
+          final quantity = itemJson['quantity'] ?? 1;
+          
+          print('CartExportService: Creating cart item: $productId, $weightOption, $quantity, $isPerUnit');
+          
+          // Create cart item
+          final cartItem = CartItem(
+            product: product,
+            weightOption: weightOption,
+            isPerUnit: isPerUnit,
+          );
+          
+          // Set quantity
+          cartItem.quantity = quantity;
+          
+          items.add(cartItem);
+        } catch (e) {
+          print('CartExportService: Error processing item: $e');
+          // Continue with next item
+        }
+      }
+      
+      print('CartExportService: Processed ${items.length} items from imported JSON');
+      return items;
+    } catch (e) {
+      print('CartExportService: Error processing imported JSON: $e');
       return null;
     }
   }
