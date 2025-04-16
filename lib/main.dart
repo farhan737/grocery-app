@@ -28,8 +28,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => CartProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (ctx) => CartProvider()),
+      ],
       child: MaterialApp(
         title: 'Sarukulu',
         themeMode: ThemeMode.dark, // Force dark theme

@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
+import '../services/cart_persistence_service.dart';
+import '../services/cart_export_service.dart';
 
 class CartProvider with ChangeNotifier {
-  final List<CartItem> _items = [];
+  List<CartItem> _items = [];
+  bool _initialized = false;
 
   List<CartItem> get items => [..._items];
 
@@ -11,6 +16,20 @@ class CartProvider with ChangeNotifier {
 
   double get totalAmount {
     return _items.fold(0.0, (sum, item) => sum + item.price);
+  }
+
+  // Initialize cart from storage
+  Future<void> initializeCart(List<Product> availableProducts) async {
+    if (_initialized) return;
+    
+    print('CartProvider: Initializing cart from storage');
+    final savedItems = await CartPersistenceService.loadCart(availableProducts);
+    if (savedItems.isNotEmpty) {
+      _items = savedItems;
+      notifyListeners();
+    }
+    _initialized = true;
+    print('CartProvider: Cart initialized with ${_items.length} items');
   }
 
   // Add item to cart
@@ -35,12 +54,20 @@ class CartProvider with ChangeNotifier {
         ),
       );
     }
+    
+    // Save cart to storage
+    CartPersistenceService.saveCart(_items);
+    
     notifyListeners();
   }
 
   // Remove item from cart
   void removeItem(int index) {
     _items.removeAt(index);
+    
+    // Save cart to storage
+    CartPersistenceService.saveCart(_items);
+    
     notifyListeners();
   }
 
@@ -48,6 +75,10 @@ class CartProvider with ChangeNotifier {
   void updateQuantity(int index, int quantity) {
     if (quantity > 0) {
       _items[index].quantity = quantity;
+      
+      // Save cart to storage
+      CartPersistenceService.saveCart(_items);
+      
       notifyListeners();
     } else {
       removeItem(index);
@@ -57,6 +88,36 @@ class CartProvider with ChangeNotifier {
   // Clear cart
   void clear() {
     _items.clear();
+    
+    // Clear saved cart
+    CartPersistenceService.clearCart();
+    
     notifyListeners();
+  }
+  
+  // Export cart to a file and share it
+  Future<void> exportCart() async {
+    if (_items.isEmpty) return;
+    
+    final orderNumber = CartExportService.generateOrderNumber();
+    await CartExportService.exportCart(_items, orderNumber);
+  }
+  
+  // Import cart from a file
+  Future<bool> importCart(List<Product> availableProducts, BuildContext context) async {
+    final importedItems = await CartExportService.importCart(availableProducts, context);
+    
+    if (importedItems == null || importedItems.isEmpty) {
+      return false;
+    }
+    
+    // Replace current cart with imported items
+    _items = importedItems;
+    
+    // Save cart to storage
+    CartPersistenceService.saveCart(_items);
+    
+    notifyListeners();
+    return true;
   }
 }

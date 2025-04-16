@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../widgets/cart_item_widget.dart';
+import '../models/product.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -16,8 +17,34 @@ class CartScreen extends StatelessWidget {
         title: const Text('Sarukulu - Cart'),
         actions: [
           if (cart.itemCount > 0)
+            // Export cart button
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Export Cart',
+              onPressed: () async {
+                try {
+                  await cart.exportCart();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cart exported successfully'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to export cart: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          if (cart.itemCount > 0)
+            // Clear cart button
             IconButton(
               icon: const Icon(Icons.delete),
+              tooltip: 'Clear Cart',
               onPressed: () {
                 showDialog(
                   context: context,
@@ -43,13 +70,61 @@ class CartScreen extends StatelessWidget {
                 );
               },
             ),
+          if (cart.itemCount == 0)
+            // Import cart button (only shown when cart is empty)
+            IconButton(
+              icon: const Icon(Icons.file_upload),
+              tooltip: 'Import Cart',
+              onPressed: () async {
+                final productsFuture = Provider.of<Future<List<Product>>>(context, listen: false);
+                final products = await productsFuture;
+                
+                final success = await cart.importCart(List<Product>.from(products), context);
+                
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cart imported successfully'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+                // No need for else block as error handling is done in the import service
+              },
+            ),
         ],
       ),
       body: cart.itemCount == 0
-          ? const Center(
-              child: Text(
-                'Your cart is empty!',
-                style: TextStyle(fontSize: 20),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Your cart is empty!',
+                    style: TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final productsFuture = Provider.of<Future<List<Product>>>(context, listen: false);
+                      final products = await productsFuture;
+                      
+                      final success = await cart.importCart(List<Product>.from(products), context);
+                      
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cart imported successfully'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                      // No need for else block as error handling is done in the import service
+                    },
+                    icon: const Icon(Icons.file_upload),
+                    label: const Text('Import Cart'),
+                  ),
+                ],
               ),
             )
           : Column(
