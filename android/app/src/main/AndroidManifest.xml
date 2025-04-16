@@ -27,8 +27,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             
+            <!-- Handle .srkl file opening - WhatsApp and other apps -->
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.srkl" />
+                <data android:pathPattern=".*\\.SRKL" />
+                <data android:host="*" />
+            </intent-filter>
+            
             <!-- Handle .srkl file opening - file scheme -->
-            <intent-filter>
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -38,19 +50,8 @@
                     android:pathPattern=".*\\.srkl" />
             </intent-filter>
             
-            <!-- Handle .srkl file opening - content scheme -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data 
-                    android:scheme="content" 
-                    android:mimeType="*/*"
-                    android:pathPattern=".*\\.srkl" />
-            </intent-filter>
-            
             <!-- Handle .srkl file opening - generic octet stream -->
-            <intent-filter>
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -58,8 +59,8 @@
                 <data android:pathPattern=".*\\.srkl" />
             </intent-filter>
             
-            <!-- Handle .srkl file sharing -->
-            <intent-filter>
+            <!-- Handle .srkl file sharing from WhatsApp and other apps -->
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />

@@ -32,15 +32,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Provider<Future<List<Product>>>.value(
       value: _productsFuture,
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.background,
         appBar: AppBar(
-          title: const Text('Sarukulu'),
+          title: Text(
+            'Sarukulu',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           actions: [
             // Order history button
             IconButton(
-              icon: const Icon(Icons.history),
+              icon: Icon(Icons.history),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -53,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.shopping_cart),
+                  icon: Icon(Icons.shopping_cart),
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -62,33 +71,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Consumer<CartProvider>(
-                    builder: (ctx, cart, _) => cart.itemCount > 0
-                        ? Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.purpleAccent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${cart.itemCount}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : Container(),
+                if (cartProvider.itemCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${cartProvider.itemCount}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -160,16 +167,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_usingMockData)
                   Container(
                     width: double.infinity,
-                    color: Colors.deepPurple.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.amber.shade800),
+                        Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Using sample data for demonstration. The Google Sheets API is currently unavailable.',
-                            style: TextStyle(color: Colors.black87),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                           ),
                         ),
                       ],
@@ -198,16 +205,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? Theme.of(context).colorScheme.secondary
-                                : const Color(0xFF2D2D2D),
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.7),
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected 
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                              width: isSelected ? 2 : 1,
+                            ),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             category.replaceAll('_', ' ').toUpperCase(),
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: FontWeight.bold,
+                              color: isSelected 
+                                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
                             ),
                           ),
                         ),

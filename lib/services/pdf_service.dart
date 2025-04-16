@@ -381,14 +381,15 @@ class PdfService {
           pw.Text(
             'Thank you for your order!',
             style: pw.TextStyle(
-              fontSize: 12,
-              color: PdfColors.grey700,
+              font: font,
+              fontSize: 14,
             ),
           ),
           pw.SizedBox(height: 5),
           pw.Text(
-            'For any inquiries, please contact us.',
+            'Generated on ${DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now())}',
             style: pw.TextStyle(
+              font: font,
               fontSize: 10,
               color: PdfColors.grey700,
             ),
@@ -397,6 +398,29 @@ class PdfService {
       );
     } catch (e) {
       print('PdfService: Error in _buildFooter: $e');
+      rethrow;
+    }
+  }
+
+  // Method to generate and share order PDF - this is the method called from OrderHistoryScreen
+  static Future<void> generateOrderPDF(Order order) async {
+    try {
+      print('PDFService: Starting PDF generation for order ${order.id}');
+      
+      // Generate and save the PDF
+      final pdfFile = await generateAndSaveOrder(order);
+      
+      // Share the PDF
+      await Printing.sharePdf(
+        bytes: await pdfFile.readAsBytes(),
+        filename: 'Order_${order.id}.pdf',
+      );
+      
+      print('PDFService: PDF shared successfully');
+    } catch (e) {
+      print('PDFService: Error generating or sharing PDF: $e');
+      print('PDFService: Error stack trace:');
+      print(StackTrace.current);
       rethrow;
     }
   }

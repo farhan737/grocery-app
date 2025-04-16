@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/order.dart';
 import '../services/database_helper.dart';
-import '../services/pdf_service.dart';
+import '../services/pdf_service.dart' as pdf;
 import 'order_details_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
@@ -32,12 +32,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Order History',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('Sarukulu - Order History'),
       ),
       body: FutureBuilder<List<Order>>(
         future: _ordersFuture,
@@ -98,10 +93,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 margin: const EdgeInsets.only(bottom: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                    width: 2,
-                  ),
                 ),
                 color: Theme.of(context).colorScheme.surface,
                 child: Padding(
@@ -161,22 +152,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () async {
-                                try {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Generating PDF...'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                  await PdfService.generateOrderPDF(order);
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: Theme.of(context).colorScheme.error,
-                                    ),
-                                  );
-                                }
+                                await pdf.PDFService.generateOrderPDF(order);
                               },
                               icon: const Icon(Icons.download),
                               label: const Text('Download PDF'),

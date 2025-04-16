@@ -32,7 +32,10 @@ class Order {
         'weightOption': item.weightOption,
         'quantity': item.quantity,
         'isPerUnit': item.isPerUnit,
-        'price': item.price,
+        // Calculate price based on weight or per unit
+        'price': item.isPerUnit 
+            ? (item.product.pricePerUnit ?? 0) * item.quantity
+            : (item.product.weights[item.weightOption] ?? 0) * item.quantity,
         'weights': item.product.weights,
         'pricePerUnit': item.product.pricePerUnit,
       }).toList()),

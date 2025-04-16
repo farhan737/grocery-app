@@ -22,28 +22,44 @@ class CartScreen extends StatelessWidget {
     final totalAmount = cartProvider.totalAmount;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background.withOpacity(0.9),
       appBar: AppBar(
-        title: const Text('Sarukulu - Cart'),
+        title: Text('Sarukulu - Cart',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         actions: [
           // Export cart button
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: Icon(Icons.share,
+              color: Colors.white,
+            ),
             onPressed: cartItems.isEmpty
                 ? null
                 : () async {
                     try {
                       await cartProvider.exportCart();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Cart exported successfully'),
-                          duration: Duration(seconds: 2),
+                        SnackBar(
+                          content: Text('Cart exported successfully',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          duration: const Duration(seconds: 2),
                         ),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to export cart: $e'),
-                          backgroundColor: Colors.red,
+                          content: Text('Failed to export cart: $e',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
+                            ),
+                          ),
+                          backgroundColor: Theme.of(context).colorScheme.error,
                         ),
                       );
                     }
@@ -52,24 +68,41 @@ class CartScreen extends StatelessWidget {
           ),
           // Import cart button
           IconButton(
-            icon: const Icon(Icons.file_download),
+            icon: Icon(Icons.file_download,
+              color: Colors.white,
+            ),
             onPressed: () async {
               try {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Import Cart'),
-                    content: const Text(
-                      'This will replace your current cart with the imported items. Continue?'
+                    title: Text('Import Cart',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    content: Text(
+                      'This will replace your current cart with the imported items. Continue?',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Cancel'),
+                        child: Text('Cancel',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Import'),
+                        child: Text('Import',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -81,8 +114,12 @@ class CartScreen extends StatelessWidget {
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Error: $e'),
-                    backgroundColor: Colors.red,
+                    content: Text('Error: $e',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                 );
               }
@@ -91,14 +128,20 @@ class CartScreen extends StatelessWidget {
           ),
           // Clear cart button
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: Icon(Icons.delete,
+              color: Colors.white,
+            ),
             onPressed: cartItems.isEmpty
                 ? null
                 : () {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Clear Cart'),
+                        title: Text('Clear Cart',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
                         content: const Text(
                             'Are you sure you want to remove all items?'),
                         actions: [
@@ -178,8 +221,24 @@ class CartScreen extends StatelessWidget {
                         );
                       }
                     },
-                    icon: const Icon(Icons.file_upload),
-                    label: const Text('Import Cart'),
+                    icon: Icon(
+                      Icons.file_upload,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      'Import Cart',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -217,7 +276,7 @@ class CartScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          backgroundColor: Theme.of(context).primaryColor,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 10),
                         ElevatedButton(
@@ -231,10 +290,19 @@ class CartScreen extends StatelessWidget {
                                 }
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           ),
-                          child: const Text('CHECKOUT'),
+                          child: const Text(
+                            'CHECKOUT',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),

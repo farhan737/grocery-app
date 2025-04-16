@@ -29,10 +29,11 @@ class _ProductCardState extends State<ProductCard> {
     }
 
     return Card(
-      elevation: 4,
+      elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           print('ProductCard: Tapped on ${widget.product.telugu}');
           print('ProductCard: Available weights: ${availableWeights.keys.toList()}');
@@ -66,15 +67,23 @@ class _ProductCardState extends State<ProductCard> {
             ListTile(
               title: Text(
                 widget.product.telugu,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               subtitle: Text(
-                widget.product.type.replaceAll('_', ' ').toUpperCase(),
-                style: TextStyle(color: Theme.of(context).colorScheme.secondary.withOpacity(0.8)),
+                widget.product.type.replaceAll('_', ' '),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 14,
+                ),
               ),
-              trailing: _expanded
-                  ? const Icon(Icons.expand_less)
-                  : const Icon(Icons.expand_more),
+              trailing: Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             if (_expanded)
               Container(
@@ -85,7 +94,13 @@ class _ProductCardState extends State<ProductCard> {
                     // Per unit option
                     if (hasPerUnitPrice)
                       RadioListTile<bool>(
-                        title: Text('Per Unit - ₹${widget.product.pricePerUnit}'),
+                        title: Text(
+                          'Per Unit - ₹${widget.product.pricePerUnit}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        activeColor: Theme.of(context).colorScheme.primary,
                         value: true,
                         groupValue: _isPerUnit,
                         onChanged: (value) {
@@ -107,7 +122,12 @@ class _ProductCardState extends State<ProductCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.remove),
+                          icon: Icon(
+                            Icons.remove,
+                            color: _quantity > 1 
+                                ? Theme.of(context).colorScheme.primary 
+                                : Theme.of(context).colorScheme.outline,
+                          ),
                           onPressed: _quantity > 1
                               ? () {
                                   setState(() {
@@ -116,12 +136,26 @@ class _ProductCardState extends State<ProductCard> {
                                 }
                               : null,
                         ),
-                        Text(
-                          '$_quantity',
-                          style: const TextStyle(fontSize: 18),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceVariant,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$_quantity',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.add),
+                          icon: Icon(
+                            Icons.add,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           onPressed: () {
                             setState(() {
                               _quantity++;
@@ -138,15 +172,24 @@ class _ProductCardState extends State<ProductCard> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.secondary,
-                          foregroundColor: Colors.white,
-                          elevation: 3,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          elevation: 2,
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         onPressed: _canAddToCart()
                             ? () => _addToCart(context)
                             : null,
-                        child: const Text('Add to Cart'),
+                        child: const Text(
+                          'Add to Cart',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -161,7 +204,13 @@ class _ProductCardState extends State<ProductCard> {
   List<Widget> _buildWeightOptions(Map<String, double> availableWeights) {
     return availableWeights.entries.map((entry) {
       return RadioListTile<String>(
-        title: Text('${entry.key} - ₹${entry.value}'),
+        title: Text(
+          '${entry.key} - ₹${entry.value}',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        activeColor: Theme.of(context).colorScheme.primary,
         value: entry.key,
         groupValue: _isPerUnit ? null : _selectedWeight,
         onChanged: (value) {
@@ -213,8 +262,14 @@ class _ProductCardState extends State<ProductCard> {
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Added to cart!'),
+      SnackBar(
+        content: Text(
+          'Added to cart!',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         duration: Duration(seconds: 1),
       ),
     );

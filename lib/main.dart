@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:receive_intent/receive_intent.dart';
 import 'package:path_provider/path_provider.dart';
@@ -28,12 +29,15 @@ class _MyAppState extends State<MyApp> {
   late CartProvider _cartProvider;
   bool _productsLoaded = false;
   List<Product> _products = [];
+  static const platform = MethodChannel('com.example.grocery_app/file_handler');
+  bool _pendingImport = false;
   
   @override
   void initState() {
     super.initState();
     _cartProvider = CartProvider();
     _checkForFileIntent();
+    _checkForNativeFileContent();
   }
   
   // Check if app was opened from a file
@@ -77,6 +81,7 @@ class _MyAppState extends State<MyApp> {
           await _processImportFile(data);
         } else {
           print('Products not loaded yet, will process after loading');
+          _pendingImport = true;
         }
         return;
       }
@@ -101,6 +106,7 @@ class _MyAppState extends State<MyApp> {
           }
         } else {
           print('Products not loaded yet, will process file after products are loaded');
+          _pendingImport = true;
         }
       } else {
         print('File does not have .srkl extension: ${uri.path}');
@@ -228,11 +234,37 @@ class _MyAppState extends State<MyApp> {
       List<Product> products = _products;
       if (products.isEmpty) {
         print('Products not loaded yet, fetching products for import');
+        
+        // Show loading indicator if context is available
+        if (navigatorKey.currentContext != null) {
+          ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+            const SnackBar(
+              content: Text('Loading products...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        
+        // Fetch products
         final sheetService = SheetService();
-        products = await sheetService.fetchProducts();
-        _productsLoaded = true;
-        _products = products;
-        print('Fetched ${products.length} products for import');
+        try {
+          products = await sheetService.fetchProducts();
+          _productsLoaded = true;
+          _products = products;
+          print('Fetched ${products.length} products for import');
+        } catch (e) {
+          print('Error fetching products: $e');
+          if (navigatorKey.currentContext != null) {
+            ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to load products. Please try again.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
       } else {
         print('Using ${products.length} already loaded products for import');
       }
@@ -301,6 +333,118 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Check for file content from native side
+  Future<void> _checkForNativeFileContent() async {
+    try {
+      // Get file content from native side
+      final fileContent = await platform.invokeMethod<String>('getFileContent');
+      print('Received file content from native side: ${fileContent != null ? 'Yes (${fileContent.length} chars)' : 'No'}');
+      
+      if (fileContent != null && fileContent.isNotEmpty) {
+        // Wait for products to load before processing
+        if (!_productsLoaded || _products.isEmpty) {
+          print('Products not loaded yet, will process native file content after products are loaded');
+          // We'll process this in the build method after products are loaded
+        } else {
+          print('Products already loaded, processing native file content immediately');
+          await _processFileContent(fileContent);
+        }
+      }
+    } catch (e) {
+      print('Error checking for native file content: $e');
+    }
+  }
+  
+  // Process file content directly
+  Future<void> _processFileContent(String fileContent) async {
+    try {
+      print('Processing file content, length: ${fileContent.length}');
+      
+      // Get products - either use already loaded products or fetch them
+      List<Product> products = _products;
+      if (products.isEmpty) {
+        print('Products not loaded yet, fetching products for import');
+        final sheetService = SheetService();
+        products = await sheetService.fetchProducts();
+        _productsLoaded = true;
+        _products = products;
+        print('Fetched ${products.length} products for import');
+      } else {
+        print('Using ${products.length} already loaded products for import');
+      }
+      
+      if (products.isEmpty) {
+        print('No products available for import');
+        if (navigatorKey.currentContext != null) {
+          ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to load products. Please try again later.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Process the cart items
+      final cartItems = await CartExportService.processImportedJson(fileContent, products);
+      print('Processed cart items: ${cartItems?.length ?? 0}');
+      
+      if (cartItems != null && cartItems.isNotEmpty) {
+        // Clear existing cart and add new items
+        _cartProvider.clearCart();
+        print('Cleared existing cart');
+        
+        for (var item in cartItems) {
+          print('Adding item to cart: ${item.product.telugu}, ${item.weightOption}, ${item.quantity}');
+          _cartProvider.addItem(
+            item.product, 
+            item.weightOption, 
+            item.quantity, 
+            item.isPerUnit ?? false
+          );
+        }
+        
+        print('Cart updated with ${cartItems.length} imported items');
+        
+        // Show success message
+        if (navigatorKey.currentContext != null) {
+          ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+            const SnackBar(
+              content: Text('Cart imported successfully'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          print('No context available for showing success message');
+        }
+      } else {
+        print('No valid cart items found in the file content');
+        if (navigatorKey.currentContext != null) {
+          ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+            const SnackBar(
+              content: Text('No valid items found in the cart file'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error processing file content: $e');
+      if (navigatorKey.currentContext != null) {
+        ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+          SnackBar(
+            content: Text('Error importing cart: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   // Global navigator key to access context from anywhere
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -314,21 +458,33 @@ class _MyAppState extends State<MyApp> {
         Provider<Future<List<Product>>>(
           create: (context) async {
             final sheetService = SheetService();
+            print('Loading products from Google Sheets...');
             final products = await sheetService.fetchProducts();
             _productsLoaded = true;
             _products = products;
+            print('Products loaded successfully: ${products.length} products');
             
             // Process pending file import if there is one
             if (_initialFilePath != null) {
-              print('Products loaded, processing pending file: $_initialFilePath');
+              print('Processing pending file: $_initialFilePath');
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final uri = Uri.parse(_initialFilePath!);
                 if (uri.scheme == 'file') {
                   _processImportFile(_initialFilePath!);
                 } else if (uri.scheme == 'content') {
                   _processContentUri(_initialFilePath!);
+                } else {
+                  // Try direct file path
+                  _processImportFile(_initialFilePath!);
                 }
               });
+            } else if (_pendingImport) {
+              print('Checking for pending imports after products loaded');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _checkForFileIntent();
+                _checkForNativeFileContent();
+              });
+              _pendingImport = false;
             }
             
             return products;
@@ -340,9 +496,190 @@ class _MyAppState extends State<MyApp> {
         navigatorKey: navigatorKey,
         title: 'Sarukulu',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
           useMaterial3: true,
+          colorScheme: ColorScheme.light(
+            primary: Color(0xFF6A1B9A),         // Deep Purple 800
+            onPrimary: Colors.white,
+            primaryContainer: Color(0xFFD1C4E9), // Deep Purple 100
+            onPrimaryContainer: Color(0xFF4A148C), // Deep Purple 900
+            secondary: Color(0xFF8E24AA),       // Purple 600
+            onSecondary: Colors.white,
+            secondaryContainer: Color(0xFFE1BEE7), // Purple 100
+            onSecondaryContainer: Color(0xFF4A148C), // Deep Purple 900
+            tertiary: Color(0xFFAB47BC),        // Purple 400
+            onTertiary: Colors.white,
+            error: Color(0xFFB71C1C),           // Red 900
+            onError: Colors.white,
+            background: Color(0xFFF5F5F5),      // Grey 100
+            onBackground: Color(0xFF212121),    // Grey 900
+            surface: Colors.white,
+            onSurface: Color(0xFF212121),       // Grey 900
+            surfaceVariant: Color(0xFFEEEEEE),  // Grey 200
+            onSurfaceVariant: Color(0xFF616161), // Grey 700
+            outline: Color(0xFF9E9E9E),         // Grey 500
+          ),
+          appBarTheme: AppBarTheme(
+            backgroundColor: Color(0xFF6A1B9A),  // Deep Purple 800
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          cardTheme: CardTheme(
+            color: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF6A1B9A),  // Deep Purple 800
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: Color(0xFF6A1B9A),  // Deep Purple 800
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Color(0xFF6A1B9A),  // Deep Purple 800
+              side: BorderSide(color: Color(0xFF6A1B9A), width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          iconTheme: IconThemeData(
+            color: Color(0xFF6A1B9A),  // Deep Purple 800
+            size: 24,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFFBDBDBD)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFFBDBDBD)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF6A1B9A), width: 2),
+            ),
+          ),
+          dividerTheme: DividerThemeData(
+            color: Color(0xFFE0E0E0),  // Grey 300
+            thickness: 1,
+            space: 24,
+          ),
         ),
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.dark(
+            primary: Color(0xFFB39DDB),         // Deep Purple 200
+            onPrimary: Color(0xFF4A148C),       // Deep Purple 900
+            primaryContainer: Color(0xFF6A1B9A), // Deep Purple 800
+            onPrimaryContainer: Color(0xFFD1C4E9), // Deep Purple 100
+            secondary: Color(0xFFCE93D8),       // Purple 200
+            onSecondary: Color(0xFF4A148C),     // Deep Purple 900
+            secondaryContainer: Color(0xFF8E24AA), // Purple 600
+            onSecondaryContainer: Color(0xFFE1BEE7), // Purple 100
+            tertiary: Color(0xFFE1BEE7),        // Purple 100
+            onTertiary: Color(0xFF4A148C),      // Deep Purple 900
+            error: Color(0xFFEF9A9A),           // Red 200
+            onError: Color(0xFF7F0000),         // Red 900
+            background: Color(0xFF121212),      // Grey 900
+            onBackground: Color(0xFFEEEEEE),    // Grey 200
+            surface: Color(0xFF212121),         // Grey 900
+            onSurface: Color(0xFFEEEEEE),       // Grey 200
+            surfaceVariant: Color(0xFF424242),  // Grey 800
+            onSurfaceVariant: Color(0xFFBDBDBD), // Grey 400
+            outline: Color(0xFF757575),         // Grey 600
+          ),
+          appBarTheme: AppBarTheme(
+            backgroundColor: Color(0xFF4A148C),  // Deep Purple 900
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          cardTheme: CardTheme(
+            color: Color(0xFF212121),           // Grey 900
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFFB39DDB),  // Deep Purple 200
+              foregroundColor: Color(0xFF4A148C),  // Deep Purple 900
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: Color(0xFFB39DDB),  // Deep Purple 200
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Color(0xFFB39DDB),  // Deep Purple 200
+              side: BorderSide(color: Color(0xFFB39DDB), width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          iconTheme: IconThemeData(
+            color: Color(0xFFB39DDB),  // Deep Purple 200
+            size: 24,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Color(0xFF424242),  // Grey 800
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF616161)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF616161)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFFB39DDB), width: 2),
+            ),
+          ),
+          dividerTheme: DividerThemeData(
+            color: Color(0xFF424242),  // Grey 800
+            thickness: 1,
+            space: 24,
+          ),
+        ),
+        themeMode: ThemeMode.system, // Uses the system theme by default
         home: HomeScreen(),
       ),
     );
