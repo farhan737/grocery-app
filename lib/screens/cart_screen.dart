@@ -4,6 +4,7 @@ import '../providers/cart_provider.dart';
 import '../widgets/cart_item_widget.dart';
 import '../models/product.dart';
 import 'checkout_screen.dart';
+import '../services/sheet_service.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -76,20 +77,48 @@ class CartScreen extends StatelessWidget {
               icon: const Icon(Icons.file_upload),
               tooltip: 'Import Cart',
               onPressed: () async {
-                final productsFuture = Provider.of<Future<List<Product>>>(context, listen: false);
-                final products = await productsFuture;
-                
-                final success = await cart.importCart(List<Product>.from(products), context);
-                
-                if (success) {
+                try {
+                  // Get products directly from the home screen
+                  final products = await _getProductsList(context);
+                  if (products.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Unable to load products. Please try again later.'),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    return;
+                  }
+                  
+                  // Show loading indicator
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Cart imported successfully'),
-                      duration: Duration(seconds: 2),
+                      content: Text('Searching for cart files...'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                  
+                  final success = await cart.importCart(products, context);
+                  
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cart imported successfully'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  print('Error importing cart: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error importing cart: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 }
-                // No need for else block as error handling is done in the import service
               },
             ),
         ],
@@ -106,20 +135,48 @@ class CartScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final productsFuture = Provider.of<Future<List<Product>>>(context, listen: false);
-                      final products = await productsFuture;
-                      
-                      final success = await cart.importCart(List<Product>.from(products), context);
-                      
-                      if (success) {
+                      try {
+                        // Get products directly from the home screen
+                        final products = await _getProductsList(context);
+                        if (products.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Unable to load products. Please try again later.'),
+                              backgroundColor: Colors.red,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        // Show loading indicator
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Cart imported successfully'),
-                            duration: Duration(seconds: 2),
+                            content: Text('Searching for cart files...'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                        
+                        final success = await cart.importCart(products, context);
+                        
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Cart imported successfully'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print('Error importing cart: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error importing cart: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
                           ),
                         );
                       }
-                      // No need for else block as error handling is done in the import service
                     },
                     icon: const Icon(Icons.file_upload),
                     label: const Text('Import Cart'),
@@ -186,5 +243,27 @@ class CartScreen extends StatelessWidget {
               ],
             ),
     );
+  }
+
+  // Helper method to get products list
+  Future<List<Product>> _getProductsList(BuildContext context) async {
+    try {
+      // Try to get products from provider
+      try {
+        final productsFuture = Provider.of<Future<List<Product>>>(context, listen: false);
+        final products = await productsFuture;
+        return List<Product>.from(products);
+      } catch (e) {
+        print('Error getting products from provider: $e');
+      }
+      
+      // Fallback: fetch products directly
+      final sheetService = SheetService();
+      final products = await sheetService.fetchProducts();
+      return products;
+    } catch (e) {
+      print('Error fetching products: $e');
+      return [];
+    }
   }
 }

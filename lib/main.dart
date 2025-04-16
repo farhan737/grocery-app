@@ -7,6 +7,8 @@ import 'dart:io' show Platform;
 
 import 'providers/cart_provider.dart';
 import 'screens/home_screen.dart';
+import 'models/product.dart';
+import 'services/sheet_service.dart';
 
 void main() {
   // Ensure Flutter is initialized
@@ -30,7 +32,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (ctx) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (context) => CartProvider(),
+        ),
+        Provider<Future<List<Product>>>(
+          create: (context) => SheetService().fetchProducts(),
+          lazy: false, // Load products immediately
+        ),
       ],
       child: MaterialApp(
         title: 'Sarukulu',

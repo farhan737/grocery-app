@@ -1,0 +1,2 @@
+/home/farhan/Documents/grocery-app/android/app/.cxx/Debug/2i3h1u65/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/farhan/Documents/grocery-app/android/app/.cxx/Debug/2i3h1u65/armeabi-v7a/CMakeFiles/rebuild_cache.dir

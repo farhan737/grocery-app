@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -37,6 +38,17 @@ class CartExportService {
       
       print('CartExportService: File created at $filePath');
       
+      // Save a copy to the app's documents directory for easier import
+      try {
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final savedFilePath = '${appDocDir.path}/$orderNumber.srkl';
+        final savedFile = File(savedFilePath);
+        await savedFile.writeAsString(jsonString);
+        print('CartExportService: Saved copy at $savedFilePath');
+      } catch (e) {
+        print('CartExportService: Error saving copy: $e');
+      }
+      
       // Share the file
       await Share.shareXFiles(
         [XFile(filePath)],
@@ -56,35 +68,56 @@ class CartExportService {
     try {
       print('CartExportService: Starting cart import');
       
-      // Show a dialog explaining how to import
-      if (context.mounted) {
-        final action = await _showImportDialog(context);
-        
-        if (action == ImportAction.cancel) {
-          print('CartExportService: Import cancelled by user');
-          return null;
-        }
-        
-        if (action == ImportAction.createSample) {
-          print('CartExportService: Creating sample cart');
-          return _createSampleCart(availableProducts);
+      // Create a sample cart file for testing on first run
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final sampleFilePath = '${appDocDir.path}/sample-cart.srkl';
+      final sampleFile = File(sampleFilePath);
+      
+      if (!await sampleFile.exists()) {
+        try {
+          // Create a sample cart JSON
+          final sampleCartData = {
+            'orderNumber': 'SAMPLE-${DateTime.now().millisecondsSinceEpoch}',
+            'timestamp': DateTime.now().toIso8601String(),
+            'items': [
+              {
+                'productId': availableProducts.isNotEmpty ? availableProducts.first.telugu : 'sample-product',
+                'weightOption': '1K',
+                'isPerUnit': false,
+                'quantity': 1,
+              }
+            ],
+          };
+          
+          // Save the sample file
+          await sampleFile.writeAsString(jsonEncode(sampleCartData));
+          print('CartExportService: Created sample file at $sampleFilePath');
+        } catch (e) {
+          print('CartExportService: Error creating sample file: $e');
         }
       }
       
       // List of directories to search for .srkl files
       final List<Directory> dirsToSearch = [];
       
-      // Add application documents directory
-      final appDocDir = await getApplicationDocumentsDirectory();
+      // Add application documents directory (highest priority)
       dirsToSearch.add(appDocDir);
       print('CartExportService: Added app documents directory: ${appDocDir.path}');
       
       // Add downloads directory if it exists
       try {
+        // Try standard Downloads folder
         final downloadsDir = Directory('${appDocDir.parent.path}/Download');
         if (await downloadsDir.exists()) {
           dirsToSearch.add(downloadsDir);
           print('CartExportService: Added downloads directory: ${downloadsDir.path}');
+        }
+        
+        // Try alternative Downloads folder name
+        final downloadsDir2 = Directory('${appDocDir.parent.path}/Downloads');
+        if (await downloadsDir2.exists()) {
+          dirsToSearch.add(downloadsDir2);
+          print('CartExportService: Added alternative downloads directory: ${downloadsDir2.path}');
         }
       } catch (e) {
         print('CartExportService: Error accessing downloads directory: $e');
@@ -95,7 +128,10 @@ class CartExportService {
         final externalDirs = await getExternalStorageDirectories();
         if (externalDirs != null && externalDirs.isNotEmpty) {
           dirsToSearch.addAll(externalDirs);
-          print('CartExportService: Added ${externalDirs.length} external storage directories');
+          print('CartExportService: Added ${externalDirs.length} external storage directories:');
+          for (var dir in externalDirs) {
+            print('  - ${dir.path}');
+          }
         }
       } catch (e) {
         print('CartExportService: Error accessing external storage: $e');
@@ -114,6 +150,9 @@ class CartExportService {
           final srklFiles = await _findSrklFilesInDir(dir);
           allSrklFiles.addAll(srklFiles);
           print('CartExportService: Found ${srklFiles.length} .srkl files in ${dir.path}');
+          for (var file in srklFiles) {
+            print('  - ${file.path} (${_formatDate(file.statSync().modified)})');
+          }
         } catch (e) {
           print('CartExportService: Error searching in ${dir.path}: $e');
         }
@@ -122,14 +161,31 @@ class CartExportService {
       if (allSrklFiles.isEmpty) {
         print('CartExportService: No .srkl files found in any directory');
         
+        // Create a sample cart file for testing
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No .srkl files found. Please share a cart file to your device first.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
+          final bool createSample = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No Cart Files Found'),
+              content: const Text(
+                'No .srkl files were found on your device. Would you like to create a sample cart with some items for testing?'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Create Sample'),
+                ),
+              ],
             ),
-          );
+          ) ?? false;
+          
+          if (createSample) {
+            return _createSampleCart(availableProducts);
+          }
         }
         
         return null;
@@ -155,9 +211,27 @@ class CartExportService {
       print('CartExportService: Using .srkl file: ${selectedFile.path}');
       
       // Read file content
-      final jsonString = await selectedFile.readAsString();
+      String jsonString;
+      try {
+        jsonString = await selectedFile.readAsString();
+        print('CartExportService: File content: ${jsonString.substring(0, min(100, jsonString.length))}...');
+      } catch (e) {
+        print('CartExportService: Error reading file: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error reading file: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return null;
+      }
       
-      return _processCartJson(jsonString, availableProducts);
+      final cartItems = await _processCartJson(jsonString, availableProducts);
+      print('CartExportService: Processed ${cartItems?.length ?? 0} cart items');
+      
+      return cartItems;
     } catch (e) {
       print('CartExportService: Error importing cart: $e');
       
@@ -179,9 +253,35 @@ class CartExportService {
     List<File> srklFiles = [];
     
     try {
-      await for (var entity in directory.list(recursive: true, followLinks: false)) {
-        if (entity is File && entity.path.toLowerCase().endsWith('.srkl')) {
-          srklFiles.add(entity);
+      print('CartExportService: Searching in ${directory.path}');
+      
+      // Check if directory exists
+      if (!await directory.exists()) {
+        print('CartExportService: Directory does not exist: ${directory.path}');
+        return srklFiles;
+      }
+      
+      // List files in directory (non-recursive for better performance)
+      await for (var entity in directory.list(recursive: false, followLinks: false)) {
+        try {
+          if (entity is File && entity.path.toLowerCase().endsWith('.srkl')) {
+            srklFiles.add(entity);
+            print('CartExportService: Found file: ${entity.path}');
+          } else if (entity is Directory && entity.path.contains('Download')) {
+            // Only check subdirectories that might contain downloads
+            try {
+              await for (var subEntity in entity.list(recursive: false, followLinks: false)) {
+                if (subEntity is File && subEntity.path.toLowerCase().endsWith('.srkl')) {
+                  srklFiles.add(subEntity);
+                  print('CartExportService: Found file in subdirectory: ${subEntity.path}');
+                }
+              }
+            } catch (e) {
+              print('CartExportService: Error listing subdirectory ${entity.path}: $e');
+            }
+          }
+        } catch (e) {
+          print('CartExportService: Error processing entity ${entity.path}: $e');
         }
       }
     } catch (e) {

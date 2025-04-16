@@ -1,0 +1,1 @@
+/home/farhan/Documents/grocery-app/build/app/intermediates/cxx/Debug/2i3h1u65/obj/x86_64
